@@ -57,9 +57,28 @@
       cursor: pointer;
       margin-bottom: 1px;
       transition: background 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .session-item:hover  { background: #eef0f3; }
     .session-item.active { background: #deeeff; }
+    .session-content { flex: 1; min-width: 0; }
+    .session-actions {
+      display: none;
+      gap: 2px;
+    }
+    .session-item:hover .session-actions { display: flex; }
+    .session-btn {
+      width: 22px; height: 22px;
+      border: none; background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      transition: background 0.15s;
+    }
+    .session-btn:hover { background: #e8e8e8; }
 
     .session-title {
       font-size: 13px;
@@ -83,6 +102,17 @@
       font-size: 12px;
       color: #888;
     }
+    .footer-left { flex: 1; display: flex; align-items: center; gap: 7px; }
+    .settings-btn {
+      width: 24px; height: 24px;
+      border: none; background: transparent;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: background 0.15s;
+    }
+    .settings-btn:hover { background: #e0e0e0; }
     .status-dot {
       width: 7px; height: 7px;
       border-radius: 50%;
@@ -296,6 +326,84 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #d8d8d8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+
+    /* ── Settings modal ────────────────────────────────────── */
+    #settings-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #settings-panel {
+      background: #fff;
+      border-radius: 12px;
+      width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .settings-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .settings-header h3 { font-size: 16px; color: #222; }
+    .close-btn {
+      width: 28px; height: 28px;
+      border: none; background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 18px;
+      color: #888;
+    }
+    .close-btn:hover { background: #f0f0f0; }
+    .settings-body { padding: 20px; }
+    .setting-group { margin-bottom: 20px; }
+    .setting-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    .setting-group input[type="text"],
+    .setting-group input[type="password"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .setting-group input:focus {
+      outline: none;
+      border-color: #0081FF;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 16px; height: 16px;
+      cursor: pointer;
+    }
+    .save-btn {
+      width: 100%;
+      padding: 10px;
+      background: #0081FF;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .save-btn:hover { background: #006ee0; }
   </style>
 </head>
 <body>
@@ -310,8 +418,11 @@
   </div>
   <div id="session-list"></div>
   <div id="sidebar-footer">
-    <div class="status-dot" id="dot"></div>
-    <span id="status-txt">连接中...</span>
+    <div class="footer-left">
+      <div class="status-dot" id="dot"></div>
+      <span id="status-txt">连接中...</span>
+    </div>
+    <button class="settings-btn" onclick="openSettings()" title="设置">⚙️</button>
   </div>
 </div>
 
@@ -347,6 +458,37 @@
   </div>
 </div>
 
+<!-- ── Settings Modal ────────────────────────────────────────── -->
+<div id="settings-modal">
+  <div id="settings-panel">
+    <div class="settings-header">
+      <h3>设置</h3>
+      <button class="close-btn" onclick="closeSettings()">×</button>
+    </div>
+    <div class="settings-body">
+      <div class="setting-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="auto-approve">
+          <label for="auto-approve">自动批准工具调用</label>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label>API 端点</label>
+        <input type="text" id="api-endpoint" placeholder="https://api.anthropic.com">
+      </div>
+      <div class="setting-group">
+        <label>API 密钥</label>
+        <input type="password" id="api-key" placeholder="sk-ant-...">
+      </div>
+      <div class="setting-group">
+        <label>模型</label>
+        <input type="text" id="api-model" placeholder="claude-sonnet-4-6">
+      </div>
+      <button class="save-btn" onclick="saveSettings()">保存设置</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = 'http://localhost:8001';
 let sessionId = null;
@@ -375,8 +517,14 @@ function renderSessions(list) {
   el.innerHTML = list.map(s => `
     <div class="session-item${s.id === sessionId ? ' active' : ''}"
          onclick="pickSession('${esc(s.id)}','${esc(s.title || '新对话')}',${s.messageCount||0})">
-      <div class="session-title">${escHtml(s.title || '新对话')}</div>
-      <div class="session-meta">${s.messageCount||0} 条 · ${fmtDate(s.createdAt)}</div>
+      <div class="session-content">
+        <div class="session-title">${escHtml(s.title || '新对话')}</div>
+        <div class="session-meta">${s.messageCount||0} 条 · ${fmtDate(s.createdAt)}</div>
+      </div>
+      <div class="session-actions">
+        <button class="session-btn" onclick="renameSession(event,'${esc(s.id)}')" title="重命名">✏️</button>
+        <button class="session-btn" onclick="deleteSession(event,'${esc(s.id)}')" title="删除">🗑️</button>
+      </div>
     </div>`).join('');
 }
 
@@ -385,7 +533,45 @@ function pickSession(id, title, cnt) {
   document.getElementById('chat-title').textContent = title;
   document.getElementById('msg-count').textContent = cnt ? `${cnt} 条消息` : '';
   showChat();
-  document.getElementById('messages').innerHTML = '';
+  loadHistory(id);
+  loadSessions();
+}
+
+async function loadHistory(id) {
+  const wrap = document.getElementById('messages');
+  wrap.innerHTML = '';
+  try {
+    const r = await fetch(`${API}/sessions/${id}/messages`);
+    const msgs = await r.json();
+    for (const m of msgs) {
+      if (m.type === 'user') {
+        const txt = m.message.content.find(c => c.type === 'text')?.text || '';
+        addMsg('user', txt);
+      } else if (m.type === 'assistant') {
+        const txt = m.message.content.find(c => c.type === 'text')?.text || '';
+        addMsg('assistant', txt);
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+async function deleteSession(e, id) {
+  e.stopPropagation();
+  if (!confirm('确定删除此对话？')) return;
+  await fetch(`${API}/sessions/${id}`, { method: 'DELETE' });
+  if (sessionId === id) newChat();
+  loadSessions();
+}
+
+async function renameSession(e, id) {
+  e.stopPropagation();
+  const title = prompt('重命名对话：');
+  if (!title) return;
+  await fetch(`${API}/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title })
+  });
   loadSessions();
 }
 
@@ -608,6 +794,39 @@ function onKey(e) {
 }
 
 // ── Init ──────────────────────────────────────────────────────
+
+async function openSettings() {
+  try {
+    const r = await fetch(`${API}/settings`);
+    const cfg = await r.json();
+    document.getElementById('auto-approve').checked = cfg.autoApprove || false;
+    document.getElementById('api-endpoint').value = cfg.provider?.endpoint || '';
+    document.getElementById('api-key').value = cfg.provider?.apiKey || '';
+    document.getElementById('api-model').value = cfg.provider?.model || '';
+    document.getElementById('settings-modal').style.display = 'flex';
+  } catch { /* ignore */ }
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+
+async function saveSettings() {
+  const cfg = {
+    autoApprove: document.getElementById('auto-approve').checked,
+    provider: {
+      endpoint: document.getElementById('api-endpoint').value,
+      apiKey: document.getElementById('api-key').value,
+      model: document.getElementById('api-model').value
+    }
+  };
+  await fetch(`${API}/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg)
+  });
+  closeSettings();
+}
 
 (async function init() {
   try {
