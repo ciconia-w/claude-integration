@@ -120,7 +120,9 @@ app.get('/files', async (req, res) => {
   try {
     const { path: dirPath } = req.query;
     if (!dirPath || typeof dirPath !== 'string') { res.status(400).json({ error: 'Path required' }); return; }
-    res.json(await fileManager.listDirectory(dirPath));
+    const list = await fileManager.listDirectory(dirPath);
+    const result = list.map(f => ({ ...f, type: f.isDirectory ? 'directory' : 'file' }));
+    res.json(result);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
