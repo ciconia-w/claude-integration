@@ -1,0 +1,15 @@
+{
+  "sessionId": "723a0a06-7b63-4627-8d4f-c46f0948a564",
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "say hi briefly"
+    },
+    {
+      "role": "assistant",
+      "content": "Hey! How can I help you today?"
+    }
+  ],
+  "createdAt": "2026-03-27T07:38:59.727Z",
+  "lastUpdated": "2026-03-27T07:38:59.728Z"
+}

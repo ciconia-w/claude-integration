@@ -1,0 +1,11 @@
+{
+  "apiEndpoint": "https://www.openclaudecode.cn",
+  "apiKey": "sk-HUItzgzYgY7aQ9734LfEa4PBe0w8g7Nhfc0jaUYrH75nKupE",
+  "model": "claude-sonnet-4-6",
+  "maxTokens": 4096,
+  "tools": {
+    "enabled": true,
+    "whitelist": [],
+    "blacklist": []
+  }
+}

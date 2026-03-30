@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>UOS AI - Claude</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans SC', 'Segoe UI', Roboto, sans-serif;
+      background: #fff;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+      color: #1a1a1a;
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #f7f8fa;
+      border-right: 1px solid #e8e8e8;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #sidebar-header { padding: 14px 12px 10px; }
+
+    #new-chat-btn {
+      width: 100%;
+      padding: 9px 14px;
+      background: #0081FF;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.18s;
+    }
+    #new-chat-btn:hover { background: #006ee0; }
+
+    #session-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px;
+    }
+
+    .session-item {
+      padding: 9px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      margin-bottom: 1px;
+      transition: background 0.12s;
+    }
+    .session-item:hover  { background: #eef0f3; }
+    .session-item.active { background: #deeeff; }
+
+    .session-title {
+      font-size: 13px;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .session-meta {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    #sidebar-footer {
+      padding: 10px 14px;
+      border-top: 1px solid #e8e8e8;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: #888;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #52c41a;
+      flex-shrink: 0;
+    }
+    .status-dot.err { background: #ff4d4f; }
+
+    /* ── Main area ─────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-width: 0;
+    }
+
+    #chat-header {
+      padding: 0 20px;
+      height: 46px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    #chat-title { font-size: 14px; font-weight: 500; color: #333; }
+    #msg-count  { font-size: 12px; color: #bbb; }
+
+    /* ── Welcome ───────────────────────────────────────────── */
+    #welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .welcome-icon {
+      width: 68px; height: 68px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0081FF 0%, #00c6ff 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+    }
+    #welcome h2 { font-size: 18px; color: #222; font-weight: 600; }
+    #welcome p  { font-size: 13px; color: #999; }
+
+    /* ── Messages ──────────────────────────────────────────── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      max-width: 88%;
+    }
+    .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .msg-row.user      .avatar { background: #0081FF; color: #fff; }
+    .msg-row.assistant .avatar { background: #f0f0f0; color: #666; }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .msg-row.user      .bubble { background: #0081FF; color: #fff; border-bottom-right-radius: 4px; }
+    .msg-row.assistant .bubble { background: #f5f6f8; color: #222; border-bottom-left-radius: 4px; }
+
+    /* ── Tool call chip ────────────────────────────────────── */
+    .tool-chip {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin: -6px 0 -6px 40px;
+      background: #fff7e6;
+      border: 1px solid #ffd591;
+      color: #ad6800;
+    }
+    .tool-chip.done { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+
+    .spin {
+      width: 10px; height: 10px;
+      border: 2px solid #ffc069;
+      border-top-color: #ad6800;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Typing dots ───────────────────────────────────────── */
+    .typing { display: flex; gap: 4px; padding: 4px 2px; }
+    .typing span {
+      width: 6px; height: 6px; border-radius: 50%; background: #bbb;
+      animation: blink 1.3s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,60%,100% { opacity:.3; transform:translateY(0); } 30% { opacity:1; transform:translateY(-4px); } }
+
+    /* ── Input area ────────────────────────────────────────── */
+    #input-wrap {
+      padding: 12px 16px 14px;
+      border-top: 1px solid #f0f0f0;
+      flex-shrink: 0;
+    }
+    #input-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: #f5f6f8;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 8px 10px;
+      transition: border-color .18s, background .18s;
+    }
+    #input-box:focus-within { border-color: #0081FF; background: #fff; }
+
+    #msg-input {
+      flex: 1;
+      border: none; outline: none;
+      background: transparent;
+      font-size: 14px;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.5;
+      font-family: inherit;
+      color: #222;
+    }
+    #msg-input::placeholder { color: #bbb; }
+    #msg-input:disabled { opacity: 0.6; }
+
+    .icon-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s, opacity .15s;
+    }
+    #send-btn { background: #0081FF; color: #fff; }
+    #send-btn:hover:not(:disabled) { background: #006ee0; }
+    #send-btn:disabled { background: #c8dff9; cursor: not-allowed; }
+    #stop-btn { background: #ff4d4f; color: #fff; display: none; }
+    #stop-btn:hover { background: #d9363e; }
+
+    #input-hint { font-size: 11px; color: #ccc; margin-top: 6px; padding-left: 2px; }
+
+    /* ── Markdown styles ───────────────────────────────────── */
+    .bubble h1 { font-size: 18px; margin: 8px 0 6px; }
+    .bubble h2 { font-size: 16px; margin: 8px 0 5px; }
+    .bubble h3 { font-size: 14px; margin: 6px 0 4px; }
+    .bubble p  { margin: 4px 0; }
+    .bubble ul, .bubble ol { padding-left: 20px; margin: 4px 0; }
+    .bubble li { margin: 2px 0; }
+
+    .bubble pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 8px;
+      padding: 10px 14px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+    .bubble code {
+      background: rgba(0,0,0,.07);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+    }
+    .bubble pre code { background: none; padding: 0; color: inherit; }
+
+    .bubble blockquote {
+      border-left: 3px solid #0081FF;
+      padding-left: 10px;
+      margin: 6px 0;
+      color: #666;
+    }
+    .bubble table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+    .bubble th, .bubble td { border: 1px solid #e0e0e0; padding: 5px 10px; }
+    .bubble th { background: #f0f0f0; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d8d8d8; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────── -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <button id="new-chat-btn" onclick="newChat()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新对话
+    </button>
+  </div>
+  <div id="session-list"></div>
+  <div id="sidebar-footer">
+    <div class="status-dot" id="dot"></div>
+    <span id="status-txt">连接中...</span>
+  </div>
+</div>
+
+<!-- ── Main chat ─────────────────────────────────────────────── -->
+<div id="main">
+  <div id="chat-header">
+    <span id="chat-title">UOS AI · Claude</span>
+    <span id="msg-count"></span>
+  </div>
+
+  <div id="welcome">
+    <div class="welcome-icon">🤖</div>
+    <h2>UOS AI · Claude</h2>
+    <p>新建对话，或从左侧选择历史会话</p>
+  </div>
+
+  <div id="messages" style="display:none;"></div>
+
+  <div id="input-wrap">
+    <div id="input-box">
+      <textarea id="msg-input" rows="1"
+        placeholder="输入消息… (Ctrl+Enter 发送)"
+        oninput="autoResize(this)"
+        onkeydown="onKey(event)"></textarea>
+      <button class="icon-btn" id="send-btn" onclick="send()" title="发送">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+      <button class="icon-btn" id="stop-btn" onclick="stop()" title="停止">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+      </button>
+    </div>
+    <div id="input-hint">Ctrl+Enter 发送 · 支持 Markdown</div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8001';
+let sessionId = null;
+let ctrl = null;      // AbortController
+let streaming = false;
+
+// ── Session list ──────────────────────────────────────────────
+
+async function loadSessions() {
+  try {
+    const r = await fetch(`${API}/sessions/list`);
+    const list = await r.json();
+    renderSessions(list);
+  } catch { /* ignore */ }
+}
+
+function renderSessions(list) {
+  const el = document.getElementById('session-list');
+  // Normalize: support both old {sessionId} format and new {id} format
+  list = list.map(s => ({ ...s, id: s.id || s.sessionId })).filter(s => s.id);
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:14px 10px;color:#bbb;font-size:12px;text-align:center">暂无历史对话</div>';
+    return;
+  }
+  list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  el.innerHTML = list.map(s => `
+    <div class="session-item${s.id === sessionId ? ' active' : ''}"
+         onclick="pickSession('${esc(s.id)}','${esc(s.title || '新对话')}',${s.messageCount||0})">
+      <div class="session-title">${escHtml(s.title || '新对话')}</div>
+      <div class="session-meta">${s.messageCount||0} 条 · ${fmtDate(s.createdAt)}</div>
+    </div>`).join('');
+}
+
+function pickSession(id, title, cnt) {
+  sessionId = id;
+  document.getElementById('chat-title').textContent = title;
+  document.getElementById('msg-count').textContent = cnt ? `${cnt} 条消息` : '';
+  showChat();
+  document.getElementById('messages').innerHTML = '';
+  loadSessions();
+}
+
+function newChat() {
+  sessionId = null;
+  document.getElementById('chat-title').textContent = '新对话';
+  document.getElementById('msg-count').textContent = '';
+  showChat();
+  document.getElementById('messages').innerHTML = '';
+}
+
+function showChat() {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('messages').style.display = 'flex';
+}
+
+// ── Send message ──────────────────────────────────────────────
+
+async function send() {
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text || streaming) return;
+
+  inp.value = '';
+  autoResize(inp);
+
+  addMsg('user', text);
+  const assistRow = addMsg('assistant', null); // typing dots
+  const bubble = assistRow.querySelector('.bubble');
+
+  streaming = true;
+  setUI(true);
+  ctrl = new AbortController();
+
+  let full = '';
+  try {
+    const res = await fetch(`${API}/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, sessionId: sessionId || undefined }),
+      signal: ctrl.signal
+    });
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    bubble.innerHTML = '';   // clear typing dots
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw) continue;
+        try {
+          const ev = JSON.parse(raw);
+          if (ev.type === 'text') {
+            full += ev.data;
+            bubble.innerHTML = md(full);
+            scrollBottom();
+          } else if (ev.type === 'tool_use') {
+            showTool(JSON.parse(ev.data));
+          } else if (ev.type === 'done') {
+            const d = JSON.parse(ev.data);
+            sessionId = d.sessionId;
+            await loadSessions();
+          }
+        } catch { /* skip bad frames */ }
+      }
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      bubble.innerHTML = '<span style="color:#ff4d4f">⚠ 连接失败，请确认后端服务已启动。</span>';
+    }
+  } finally {
+    streaming = false;
+    setUI(false);
+    ctrl = null;
+    scrollBottom();
+  }
+}
+
+function stop() {
+  ctrl && ctrl.abort();
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+
+function addMsg(role, text) {
+  const wrap = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+
+  const av = document.createElement('div');
+  av.className = 'avatar';
+  av.textContent = role === 'user' ? '我' : '🤖';
+
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  if (text === null) {
+    b.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  } else if (role === 'user') {
+    b.textContent = text;
+  } else {
+    b.innerHTML = md(text);
+  }
+
+  row.appendChild(av);
+  row.appendChild(b);
+  wrap.appendChild(row);
+  scrollBottom();
+  return row;
+}
+
+function showTool(tool) {
+  const wrap = document.getElementById('messages');
+  let chip = document.getElementById('chip-' + tool.id);
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = 'chip-' + tool.id;
+    chip.className = 'tool-chip';
+    wrap.appendChild(chip);
+  }
+  if (tool.status === 'started') {
+    chip.innerHTML = `<div class="spin"></div> 工具调用：<b>${escHtml(tool.name)}</b>`;
+  } else {
+    chip.className = 'tool-chip done';
+    chip.innerHTML = `✓ 已完成：<b>${escHtml(tool.name)}</b>`;
+  }
+  scrollBottom();
+}
+
+function setUI(on) {
+  document.getElementById('send-btn').style.display = on ? 'none' : 'flex';
+  document.getElementById('stop-btn').style.display = on ? 'flex' : 'none';
+  document.getElementById('msg-input').disabled = on;
+}
+
+function setStatus(txt, err) {
+  document.getElementById('status-txt').textContent = txt;
+  document.getElementById('dot').className = 'status-dot' + (err ? ' err' : '');
+}
+
+function scrollBottom() {
+  const el = document.getElementById('messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Markdown ──────────────────────────────────────────────────
+
+function md(s) {
+  // Protect code blocks first
+  const blocks = [];
+  s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    blocks.push(`<pre><code>${escHtml(code.trim())}</code></pre>`);
+    return `\x00BLOCK${blocks.length - 1}\x00`;
+  });
+
+  // Inline code
+  s = s.replace(/`([^`\n]+)`/g, (_, c) => `<code>${escHtml(c)}</code>`);
+
+  // Headers
+  s = s.replace(/^#{3} (.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^#{2} (.+)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold / italic
+  s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+
+  // Blockquote
+  s = s.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Lists (simple)
+  s = s.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+  s = s.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+  s = s.replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ul>$1</ul>');
+
+  // Horizontal rule
+  s = s.replace(/^---+$/gm, '<hr>');
+
+  // Line breaks
+  s = s.replace(/\n\n+/g, '</p><p>');
+  s = s.replace(/\n/g, '<br>');
+  s = '<p>' + s + '</p>';
+
+  // Restore code blocks
+  s = s.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => blocks[+i]);
+
+  return s;
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function esc(s) {
+  return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), n = new Date();
+  if (d.toDateString() === n.toDateString())
+    return d.toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleDateString('zh-CN', { month:'numeric', day:'numeric' });
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+function onKey(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); send(); }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+
+(async function init() {
+  try {
+    const r = await fetch(`${API}/health`);
+    if (r.ok) {
+      setStatus('Claude 已连接');
+      await loadSessions();
+    } else {
+      setStatus('服务异常', true);
+    }
+  } catch {
+    setStatus('后端未启动', true);
+  }
+})();
+</script>
+</body>
+</html>

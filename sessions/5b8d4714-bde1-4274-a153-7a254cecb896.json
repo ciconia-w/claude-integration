@@ -1,0 +1,15 @@
+{
+  "sessionId": "5b8d4714-bde1-4274-a153-7a254cecb896",
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "你好，我叫小明"
+    },
+    {
+      "role": "assistant",
+      "content": "你好，小明！有什么我可以帮你的吗？"
+    }
+  ],
+  "createdAt": "2026-03-27T00:35:29.998Z",
+  "lastUpdated": "2026-03-27T00:35:29.998Z"
+}
