@@ -6,11 +6,15 @@ import { MCPManager } from './src/mcp-manager';
 import { CronManager } from './src/cron-manager';
 import { FileManager } from './src/file-manager';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 8001;
 const SESSIONS_DIR = path.join(__dirname, '..', 'sessions');
+const LOCAL_CONFIG_DIR = path.join(os.homedir(), '.claude-integration');
+const SETTINGS_FILE = path.join(LOCAL_CONFIG_DIR, 'settings.json');
+const LEGACY_SETTINGS_FILE = path.join(SESSIONS_DIR, 'settings.json');
 
 // Find the claude binary (support NVM installations)
 function findClaude(): string {
@@ -33,6 +37,10 @@ if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
+if (!fs.existsSync(LOCAL_CONFIG_DIR)) {
+  fs.mkdirSync(LOCAL_CONFIG_DIR, { recursive: true });
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use((req, res, next) => {
@@ -43,12 +51,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── SSE helper ──────────────────────────────────────────────────
+// 鈹€鈹€ SSE helper 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 function formatSSE(type: string, data: string): string {
   return `data: ${JSON.stringify({ type, data })}\n\n`;
 }
 
-// ── Session metadata helpers ─────────────────────────────────────
+// 鈹€鈹€ Session metadata helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 interface SessionMeta {
   id: string;
   title: string;
@@ -70,12 +78,12 @@ function saveSessionMeta(meta: SessionMeta): void {
   );
 }
 
-// ── Health ───────────────────────────────────────────────────────
+// 鈹€鈹€ Health 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: Math.floor(process.uptime()) });
 });
 
-// ── Sessions list ────────────────────────────────────────────────
+// 鈹€鈹€ Sessions list 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 app.get('/sessions/list', (_req, res) => {
   try {
     const files = fs.readdirSync(SESSIONS_DIR).filter(f => f.endsWith('.json'));
@@ -113,7 +121,7 @@ app.patch('/sessions/:id', (req, res) => {
   res.json(meta);
 });
 
-// ── File operations ──────────────────────────────────────────────
+// 鈹€鈹€ File operations 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const fileManager = new FileManager();
 
 app.get('/files', async (req, res) => {
@@ -134,7 +142,7 @@ app.get('/files/read', async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Skills ───────────────────────────────────────────────────────
+// 鈹€鈹€ Skills 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const skillManager = new SkillManager();
 skillManager.loadSkills();
 
@@ -152,7 +160,7 @@ app.post('/skills/:name/toggle', (req, res) => {
   res.json({ success: true });
 });
 
-// ── MCP ──────────────────────────────────────────────────────────
+// 鈹€鈹€ MCP 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const mcpManager = new MCPManager();
 mcpManager.loadServers();
 
@@ -171,7 +179,7 @@ app.post('/mcp/:name/toggle', async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Cron ─────────────────────────────────────────────────────────
+// 鈹€鈹€ Cron 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 const cronManager = new CronManager();
 cronManager.loadTasks();
 
@@ -199,23 +207,29 @@ app.post('/cron/:id/toggle', async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Settings ─────────────────────────────────────────────────────
-const SETTINGS_FILE = path.join(SESSIONS_DIR, 'settings.json');
-
+// 鈹€鈹€ Settings 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 app.get('/settings', (_req, res) => {
-  if (!fs.existsSync(SETTINGS_FILE)) {
+  const settingsPath = fs.existsSync(SETTINGS_FILE)
+    ? SETTINGS_FILE
+    : (fs.existsSync(LEGACY_SETTINGS_FILE) ? LEGACY_SETTINGS_FILE : null);
+
+  if (!settingsPath) {
     res.json({ autoApprove: false, provider: { endpoint: '', apiKey: '', model: '' } });
     return;
   }
-  res.json(JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8')));
+
+  res.json(JSON.parse(fs.readFileSync(settingsPath, 'utf-8')));
 });
 
 app.post('/settings', (req, res) => {
+  if (!fs.existsSync(LOCAL_CONFIG_DIR)) {
+    fs.mkdirSync(LOCAL_CONFIG_DIR, { recursive: true });
+  }
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(req.body, null, 2));
   res.json({ success: true });
 });
 
-// ── Stream (claude CLI) ──────────────────────────────────────────
+// 鈹€鈹€ Stream (claude CLI) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 app.post('/stream', (req, res) => {
   const { message, sessionId } = req.body;
 
@@ -317,7 +331,7 @@ app.post('/stream', (req, res) => {
   });
 });
 
-// ── Start ─────────────────────────────────────────────────────────
+// 鈹€鈹€ Start 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 app.listen(PORT, () => {
   console.log(`Claude Desktop backend running on port ${PORT}`);
 });
