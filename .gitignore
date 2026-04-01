@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 *.log
+config.local.json
+sessions/settings.json
