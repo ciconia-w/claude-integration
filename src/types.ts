@@ -34,7 +34,7 @@ export type SSEEvent =
     | { type: 'tool_result'; data: string }
     | { type: 'status'; data: string }
     | { type: 'error'; data: string }
-    | { type: 'done'; data: '' };
+    | { type: 'done'; data: string };
 
 export interface HealthResponse {
     status: 'ok' | 'error';

@@ -484,6 +484,22 @@
         <label>模型</label>
         <input type="text" id="api-model" placeholder="claude-sonnet-4-6">
       </div>
+      <div class="setting-group">
+        <label>CLI Command</label>
+        <input type="text" id="runtime-command" placeholder="claude / claude-js / node">
+      </div>
+      <div class="setting-group">
+        <label>CLI Launch Args</label>
+        <input type="text" id="runtime-launch-args" placeholder='["D:/tools/claude-js/dist/cli.js"]'>
+      </div>
+      <div class="setting-group">
+        <label>Working Directory</label>
+        <input type="text" id="runtime-working-directory" placeholder="~/workspace">
+      </div>
+      <div class="setting-group">
+        <label>Transcript Root</label>
+        <input type="text" id="runtime-transcript-root" placeholder="~/.claude/projects">
+      </div>
       <button class="save-btn" onclick="saveSettings()">保存设置</button>
     </div>
   </div>
@@ -803,6 +819,12 @@ async function openSettings() {
     document.getElementById('api-endpoint').value = cfg.provider?.endpoint || '';
     document.getElementById('api-key').value = cfg.provider?.apiKey || '';
     document.getElementById('api-model').value = cfg.provider?.model || '';
+    document.getElementById('runtime-command').value = cfg.runtime?.command || '';
+    document.getElementById('runtime-launch-args').value = Array.isArray(cfg.runtime?.launchArgs)
+      ? JSON.stringify(cfg.runtime.launchArgs)
+      : (cfg.runtime?.launchArgs || '');
+    document.getElementById('runtime-working-directory').value = cfg.runtime?.workingDirectory || '';
+    document.getElementById('runtime-transcript-root').value = cfg.runtime?.transcriptRoot || '';
     document.getElementById('settings-modal').style.display = 'flex';
   } catch { /* ignore */ }
 }
@@ -818,6 +840,12 @@ async function saveSettings() {
       endpoint: document.getElementById('api-endpoint').value,
       apiKey: document.getElementById('api-key').value,
       model: document.getElementById('api-model').value
+    },
+    runtime: {
+      command: document.getElementById('runtime-command').value,
+      launchArgs: document.getElementById('runtime-launch-args').value,
+      workingDirectory: document.getElementById('runtime-working-directory').value,
+      transcriptRoot: document.getElementById('runtime-transcript-root').value
     }
   };
   await fetch(`${API}/settings`, {
